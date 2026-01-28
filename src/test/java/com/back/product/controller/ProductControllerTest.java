@@ -26,6 +26,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.request;
+
 @Import(TestcontainersConfiguration.class)
 @SpringBootTest
 //@ActiveProfiles("test")
@@ -294,5 +296,48 @@ class ProductControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.message").exists());
 
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/products/chat/stream - 스트리밍 채팅 요청")
+    void t17() throws Exception {
+        productService.create("Gaming Laptop", List.of("gaming", "laptop", "high-performance"));
+        productService.create("Business Laptop", List.of("business", "laptop", "office"));
+
+        ResultActions result = mockMvc.perform(get("/api/v1/products/chat/stream")
+                .param("message", "I need a laptop for gaming")
+                .accept(MediaType.TEXT_EVENT_STREAM_VALUE));
+
+        result.andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(request().asyncStarted());
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/products/chat/stream - 상품 없이 스트리밍 채팅 요청")
+    void t18() throws Exception {
+        ResultActions result = mockMvc.perform(get("/api/v1/products/chat/stream")
+                .param("message", "Show me all products")
+                .accept(MediaType.TEXT_EVENT_STREAM_VALUE));
+
+        result.andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(request().asyncStarted());
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/products/chat/stream - 유사 상품 스트리밍 검색 요청")
+    void t19() throws Exception {
+        Product laptop = productService.create("MacBook Pro", List.of("laptop", "apple", "development"));
+        productService.create("iPhone 15", List.of("smartphone", "apple", "communication"));
+        productService.create("iPad Pro", List.of("tablet", "apple", "drawing"));
+
+        ResultActions result = mockMvc.perform(get("/api/v1/products/chat/stream")
+                .param("message", "Find products similar to product ID " + laptop.getId())
+                .accept(MediaType.TEXT_EVENT_STREAM_VALUE));
+
+        result.andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(request().asyncStarted());
     }
 }

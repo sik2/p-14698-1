@@ -4,9 +4,13 @@ import com.back.product.entity.Product;
 import com.back.product.service.ProductChatService;
 import com.back.product.service.ProductService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import reactor.core.publisher.Flux;
 
+import java.io.IOException;
 import java.util.List;
 
 @RestController
@@ -93,4 +97,32 @@ public class ProductController {
     }
     public record ChatRequest(String message) {}
     public record ChatResponse(String message) {}
+
+    @GetMapping(value="/chat/stream",produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter chat(@RequestParam String message) {
+        SseEmitter emitter = new SseEmitter(0L);
+
+        // 2. ChatClient를 통해 스트림(Flux) 요청
+        Flux<String> response = productChatService.chatStream(message);
+
+        // 3. 스트림 구독 및 전송
+        response.subscribe(
+                r -> {
+                    try {
+                        // 토큰 텍스트 추출
+                        if (r != null) {
+                            emitter.send(SseEmitter.event()
+                                    .name("message")
+                                    .data(r));
+                        }
+                    } catch (IOException e) {
+                        emitter.completeWithError(e);
+                    }
+                },
+                error -> emitter.completeWithError(error), // 에러 발생 시
+                () -> emitter.complete() // 스트림 종료 시
+        );
+
+        return emitter;
+    }
 }

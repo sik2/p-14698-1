@@ -3,6 +3,7 @@ package com.back.product.service;
 import com.back.product.tool.ProductSearchTool;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Flux;
 
 @Service
 public class ProductChatService {
@@ -43,4 +44,13 @@ public class ProductChatService {
     }
 
     public record ChatResponse(String message) {}
+
+    public Flux<String> chatStream(String userMessage) {
+        return chatClient.prompt()
+                .system(SYSTEM_PROMPT)
+                .user(userMessage)
+                .tools(productSearchTool)
+                .stream()
+                .content();
+    }
 }
