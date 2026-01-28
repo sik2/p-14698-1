@@ -3,8 +3,6 @@ package com.back;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.context.annotation.Bean;
-import org.testcontainers.elasticsearch.ElasticsearchContainer;
-import org.testcontainers.ollama.OllamaContainer;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.utility.DockerImageName;
 
@@ -13,22 +11,9 @@ public class TestcontainersConfiguration {
 
     @Bean
     @ServiceConnection
-    ElasticsearchContainer elasticsearchContainer() {
-        return new ElasticsearchContainer(DockerImageName.parse("docker.elastic.co/elasticsearch/elasticsearch:9.2.3"))
-                .withEnv("xpack.security.enabled", "false")
-                .withEnv("discovery.type", "single-node");
-    }
-
-    @Bean
-    @ServiceConnection
-    OllamaContainer ollamaContainer() {
-        return new OllamaContainer(DockerImageName.parse("ollama/ollama:latest"));
-    }
-
-    @Bean
-    @ServiceConnection
     PostgreSQLContainer postgresContainer() {
-        return new PostgreSQLContainer(DockerImageName.parse("postgres:latest"));
+        return new PostgreSQLContainer(DockerImageName.parse("pgvector/pgvector:pg17"))
+                .withInitScript("init-pgvector.sql");
     }
 
 }

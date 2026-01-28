@@ -3,7 +3,6 @@ package com.back.product.controller;
 
 import com.back.TestcontainersConfiguration;
 import com.back.product.entity.Product;
-import com.back.product.repository.ProductDocumentRepository;
 import com.back.product.repository.ProductRepository;
 import com.back.product.service.ProductService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -15,6 +14,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
@@ -23,15 +23,14 @@ import java.util.List;
 import static org.hamcrest.Matchers.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.request;
 
 @Import(TestcontainersConfiguration.class)
 @SpringBootTest
-//@ActiveProfiles("test")
+@ActiveProfiles("test")
 @AutoConfigureMockMvc
+
 class ProductControllerTest {
     @Autowired
     private MockMvc mockMvc;
@@ -45,12 +44,8 @@ class ProductControllerTest {
     @Autowired
     private ProductRepository productRepository;
 
-    @Autowired
-    private ProductDocumentRepository productDocumentRepository;
-
     @BeforeEach
     void setUp() {
-        productDocumentRepository.deleteAll();
         productRepository.deleteAll();
     }
 
@@ -295,7 +290,6 @@ class ProductControllerTest {
         result.andDo(print())
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.message").exists());
-
     }
 
     @Test
