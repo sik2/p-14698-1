@@ -42,14 +42,15 @@ public class ProductService {
 
     public Product create(String name, List<String> keywords){
         Product product = this._create(name, keywords);
-        List<float[]> embeddings = embeddingModel.embed(keywords);
         ProductDocument doc = new ProductDocument();
-        doc.setEmbedding(calculateAverage(embeddings));
+        if (!keywords.isEmpty()) {
+            List<float[]> embeddings = embeddingModel.embed(keywords);
+            doc.setEmbedding(calculateAverage(embeddings));
+        }
         doc.setId(product.getId());
         productDocumentRepository.save(doc);
         return product;
     }
-
     public Optional<Product> findById(Long id) {
         return productRepository.findById(id);
     }
@@ -92,9 +93,15 @@ public class ProductService {
         productDocumentRepository.deleteById(id);
     }
 
-    public List<Product> knnSearch(String query, int k) {
-        float[] queryEmbedding = embeddingModel.embed(query);
-        List<ProductDocument> docs = knnSearchByVector(queryEmbedding, "embedding", k, k * 2);
+    public List<Product> knnSearch(List<String> keywords, int k) {
+        if (keywords == null || keywords.isEmpty()) {
+            return List.of();
+        }
+
+        List<float[]> embeddings = embeddingModel.embed(keywords);
+        float[] queryVector = calculateAverage(embeddings);
+
+        List<ProductDocument> docs = knnSearchByVector(queryVector, "embedding", k, k * 2);
         List<Long> ids = docs.stream().map(ProductDocument::getId).toList();
 
         // KNN 결과 순서대로 정렬
@@ -105,6 +112,22 @@ public class ProductService {
         return ids.stream()
                 .map(productMap::get)
                 .filter(Objects::nonNull)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<Product> findSimilarProducts(Long productId, int k) {
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new RuntimeException("Product not found: " + productId));
+
+        List<String> keywords = product.getKeywords().stream()
+                .map(pk -> pk.getKeyword())
+                .toList();
+
+        // 자기 자신을 제외하기 위해 k+1개를 검색한 후 필터링
+        return knnSearch(keywords, k + 1).stream()
+                .filter(p -> !p.getId().equals(productId))
+                .limit(k)
                 .toList();
     }
 

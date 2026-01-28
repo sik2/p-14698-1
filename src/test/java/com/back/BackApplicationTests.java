@@ -5,6 +5,7 @@ import com.back.product.entity.Product;
 import com.back.product.repository.ProductDocumentRepository;
 import com.back.product.repository.ProductRepository;
 import com.back.product.service.ProductService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,12 +23,18 @@ import static org.junit.jupiter.api.Assertions.*;
 class BackApplicationTests {
     @Autowired
     private ProductRepository productRepository;
-
     @Autowired
     private ProductDocumentRepository productDocumentRepository;
 
     @Autowired
     private ProductService productService;
+
+    @BeforeEach
+    void setUp() {
+        // 이전 테스트 데이터 정리
+        productDocumentRepository.deleteAll();
+        productRepository.deleteAll();
+    }
 
     @Test
     @DisplayName("JPA 테스트")
@@ -128,47 +135,48 @@ class BackApplicationTests {
     }
 
     @Test
-    @DisplayName("ProductService - KNN Search basic test")
+    @DisplayName("ProductService - KNN Search basic test with keywords")
     void t7() {
         // given
         productService.create("Gaming Laptop", List.of("gaming", "high-performance", "graphics-card"));
         productService.create("Business Laptop", List.of("office", "document", "lightweight"));
         productService.create("Gaming Mouse", List.of("gaming", "high-sensitivity", "RGB"));
 
-        // when - search for "gaming computer"
-        List<Product> results = productService.knnSearch("gaming computer", 3);
+        // when - search using keywords list (simulating user viewing a gaming product)
+        List<Product> results = productService.knnSearch(List.of("gaming", "computer"), 3);
 
         // then
         assertNotNull(results);
         assertFalse(results.isEmpty());
-        System.out.println("KNN Search Results:");
+        System.out.println("KNN Search Results (keywords: gaming, computer):");
         results.forEach(r -> System.out.println(" - " + r.getName()));
     }
 
     @Test
-    @DisplayName("ProductService - KNN Search result order verification")
+    @DisplayName("ProductService - KNN Search with product keywords")
     void t8() {
         // given - products from different categories
         Product coffee = productService.create("Americano", List.of("coffee", "caffeine", "beverage"));
         Product tea = productService.create("Green Tea", List.of("tea", "catechin", "beverage"));
         Product juice = productService.create("Orange Juice", List.of("fruit", "vitamin", "beverage"));
 
-        // when - search for "coffee drink"
-        List<Product> results = productService.knnSearch("coffee drink", 3);
+        // when - search using coffee product's keywords
+        List<String> coffeeKeywords = List.of("coffee", "caffeine", "beverage");
+        List<Product> results = productService.knnSearch(coffeeKeywords, 3);
 
-        // then - verify results are returned and contain the products
+        // then - verify results are returned and coffee is in results
         assertFalse(results.isEmpty());
         List<Long> resultIds = results.stream().map(Product::getId).toList();
         assertTrue(resultIds.contains(coffee.getId()), "Americano should be in results");
 
-        System.out.println("Order verification (coffee drink search):");
+        System.out.println("Search with coffee keywords:");
         for (int i = 0; i < results.size(); i++) {
             System.out.println((i + 1) + ": " + results.get(i).getName());
         }
     }
 
     @Test
-    @DisplayName("ProductService - KNN Search electronics category")
+    @DisplayName("ProductService - findSimilarProducts test")
     void t9() {
         // given
         Product laptop = productService.create("MacBook Pro", List.of("laptop", "apple", "development"));
@@ -176,15 +184,15 @@ class BackApplicationTests {
         Product tablet = productService.create("iPad Pro", List.of("tablet", "apple", "drawing"));
         Product headphone = productService.create("AirPods Max", List.of("headphone", "apple", "music"));
 
-        // when - search for "developer computer"
-        List<Product> results = productService.knnSearch("developer computer", 4);
+        // when - find similar products to MacBook Pro
+        List<Product> results = productService.findSimilarProducts(laptop.getId(), 3);
 
-        // then - verify MacBook is in results
+        // then - MacBook should not be in results (exclude itself), other apple products should be
         assertFalse(results.isEmpty());
         List<Long> resultIds = results.stream().map(Product::getId).toList();
-        assertTrue(resultIds.contains(laptop.getId()), "MacBook should be in results");
+        assertFalse(resultIds.contains(laptop.getId()), "MacBook should NOT be in results (self excluded)");
 
-        System.out.println("Electronics search (developer computer):");
+        System.out.println("Similar products to MacBook Pro:");
         for (int i = 0; i < results.size(); i++) {
             System.out.println((i + 1) + ": " + results.get(i).getName());
         }
@@ -199,8 +207,8 @@ class BackApplicationTests {
         Product jeans = productService.create("Blue Jeans", List.of("bottom", "denim", "casual"));
         Product coat = productService.create("Wool Coat", List.of("outerwear", "winter", "formal"));
 
-        // when - search for "cold weather clothes"
-        List<Product> results = productService.knnSearch("cold weather clothes", 4);
+        // when - search using winter clothing keywords
+        List<Product> results = productService.knnSearch(List.of("outerwear", "winter", "warm"), 4);
 
         // then - winter clothes should be in results
         assertFalse(results.isEmpty());
@@ -209,7 +217,7 @@ class BackApplicationTests {
         boolean hasWinterClothes = resultIds.stream().anyMatch(winterIds::contains);
         assertTrue(hasWinterClothes, "Winter clothes should be in results");
 
-        System.out.println("Clothing search (cold weather clothes):");
+        System.out.println("Clothing search (winter keywords):");
         for (int i = 0; i < results.size(); i++) {
             System.out.println((i + 1) + ": " + results.get(i).getName());
         }
@@ -226,7 +234,7 @@ class BackApplicationTests {
         productService.create("Product 5", List.of("test", "fifth"));
 
         // when - search with k=3
-        List<Product> results = productService.knnSearch("test product", 3);
+        List<Product> results = productService.knnSearch(List.of("test", "product"), 3);
 
         // then - should return at most 3 results
         assertTrue(results.size() <= 3, "Should not return more than k results");
@@ -236,14 +244,15 @@ class BackApplicationTests {
     }
 
     @Test
-    @DisplayName("ProductService - KNN Search empty result handling")
+    @DisplayName("ProductService - KNN Search empty keywords handling")
     void t12() {
-        // when - search with no data
-        List<Product> results = productService.knnSearch("non-existent product", 3);
+        // when - search with empty keywords
+        List<Product> results = productService.knnSearch(List.of(), 3);
 
         // then - should return empty list
         assertNotNull(results);
-        System.out.println("Empty result handling: result count = " + results.size());
+        assertTrue(results.isEmpty(), "Empty keywords should return empty list");
+        System.out.println("Empty keywords handling: result count = " + results.size());
     }
 
 }
