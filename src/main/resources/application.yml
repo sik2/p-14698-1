@@ -22,4 +22,5 @@ spring:
       api-key: ${OPENAI_API_KEY:sk-dummy}
       embedding:
         options:
+          model: text-embedding-3-small # ?? ?? ??
           dimensions: 384
