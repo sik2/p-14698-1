@@ -1,0 +1,33 @@
+services:
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/data
+    restart: unless-stopped
+  postgres:
+    image: postgres:latest
+    environment:
+      POSTGRES_DB: ${DATABASE_NAME:-vectordb}
+      POSTGRES_USER: ${DATABASE_USERNAME:-vector}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:-vector123}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    restart: unless-stopped
+  elasticsearch:
+    image: elasticsearch:9.2.3
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+    ports:
+      - "9200:9200"
+    volumes:
+      - es-data:/usr/share/elasticsearch/data
+    restart: unless-stopped
+volumes:
+  ollama-data:
+  postgres-data:
+  es-data:
