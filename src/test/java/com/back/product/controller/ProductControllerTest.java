@@ -222,4 +222,77 @@ class ProductControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(0)));
     }
+
+    @Test
+    @DisplayName("POST /api/v1/products/chat - 채팅으로 상품 추천 요청")
+    void t13() throws Exception {
+        productService.create("Gaming Laptop", List.of("gaming", "laptop", "high-performance"));
+        productService.create("Business Laptop", List.of("business", "laptop", "office"));
+        productService.create("Gaming Mouse", List.of("gaming", "mouse", "RGB"));
+
+        var request = new ProductController.ChatRequest("I need a laptop for gaming. Can you recommend something?");
+
+        ResultActions result = mockMvc.perform(post("/api/v1/products/chat")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)));
+
+        result.andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").exists())
+                .andExpect(jsonPath("$.message").isString());
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/products/chat - 특정 상품과 유사한 상품 추천 요청")
+    void t14() throws Exception {
+        Product laptop = productService.create("MacBook Pro", List.of("laptop", "apple", "development"));
+        productService.create("iPhone 15", List.of("smartphone", "apple", "communication"));
+        productService.create("iPad Pro", List.of("tablet", "apple", "drawing"));
+
+        var request = new ProductController.ChatRequest("Find products similar to product ID " + laptop.getId());
+
+        ResultActions result = mockMvc.perform(post("/api/v1/products/chat")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)));
+
+        result.andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").exists());
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/products/chat - 모든 상품 조회 요청")
+    void t15() throws Exception {
+        productService.create("Product A", List.of("test", "a"));
+        productService.create("Product B", List.of("test", "b"));
+
+        var request = new ProductController.ChatRequest("Show me all available products");
+
+        ResultActions result = mockMvc.perform(post("/api/v1/products/chat")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)));
+
+        result.andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").exists());
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/products/chat - 카테고리별 상품 검색 요청")
+    void t16() throws Exception {
+        productService.create("Running Shoes", List.of("sports", "running", "fitness"));
+        productService.create("Yoga Mat", List.of("sports", "yoga", "fitness"));
+        productService.create("Dumbbells", List.of("sports", "weight", "fitness"));
+
+        var request = new ProductController.ChatRequest("I'm looking for fitness equipment for home workout");
+
+        ResultActions result = mockMvc.perform(post("/api/v1/products/chat")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)));
+
+        result.andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").exists());
+
+    }
 }
